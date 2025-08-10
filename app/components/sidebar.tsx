@@ -40,6 +40,79 @@ const ChatList = dynamic(async () => (await import("./chat-list")).ChatList, {
   loading: () => null,
 });
 
+// ++ SERVER STATUS INDICATOR COMPONENT
+function ServerStatusIndicator() {
+  // State to hold the server status. Initial state is 'Checking...'
+  const [status, setStatus] = useState("Checking...");
+  const [lastChecked, setLastChecked] = useState<string | null>(null);
+
+  // The URL of your GPT4All server's health check endpoint
+  const HEALTH_CHECK_URL =
+    "https://included-presumably-moccasin.ngrok-free.app/v1/models";
+
+  useEffect(() => {
+    // Function to perform the health check
+    const checkServerStatus = async () => {
+      try {
+        // Fetch the models list. We only care if we get a successful response.
+        const response = await fetch(HEALTH_CHECK_URL);
+
+        // If the response status is OK (e.g., 200), the server is online.
+        if (response.ok) {
+          setStatus("Online");
+        } else {
+          // If the server responds with an error code, it's considered offline.
+          setStatus("Offline");
+        }
+      } catch (error) {
+        // If the fetch request itself fails (e.g., network error), the server is offline.
+        console.error("Health check failed:", error);
+        setStatus("Offline");
+      }
+      // Update the time of the last check
+      setLastChecked(new Date().toLocaleTimeString());
+    };
+
+    // Run the check immediately when the component first loads
+    checkServerStatus();
+
+    // Set up an interval to run the health check every 60 seconds (60000 milliseconds)
+    const intervalId = setInterval(checkServerStatus, 30000);
+
+    // Cleanup function: This will clear the interval when the component is unmounted
+    // to prevent memory leaks.
+    return () => clearInterval(intervalId);
+  }, []); // The empty dependency array [] means this effect runs only once on mount.
+
+  // Render the status indicator
+  return (
+    <div
+      className={styles["sidebar-status"]}
+      style={{ display: "flex", alignItems: "center", marginTop: "4px" }}
+    >
+      <div
+        style={{
+          width: "10px",
+          height: "10px",
+          borderRadius: "50%",
+          marginRight: "8px",
+          backgroundColor:
+            status === "Online"
+              ? "#28a745"
+              : status === "Offline"
+              ? "#dc3545"
+              : "#ffc107",
+        }}
+      />
+      <div className={styles["sidebar-status-text"]}>
+        {status}
+        {status === "Offline" && lastChecked && <span> ({lastChecked})</span>}
+      </div>
+    </div>
+  );
+}
+// -- SERVER STATUS INDICATOR COMPONENT
+
 export function useHotKey() {
   const chatStore = useChatStore();
 
@@ -182,13 +255,15 @@ export function SideBarHeader(props: {
         })}
         data-tauri-drag-region
       >
+        <div className={clsx(styles["sidebar-logo"], "no-dark")}>{logo}</div>
         <div className={styles["sidebar-title-container"]}>
           <div className={styles["sidebar-title"]} data-tauri-drag-region>
             {title}
           </div>
           <div className={styles["sidebar-sub-title"]}>{subTitle}</div>
+          {/* ++ SERVER STATUS INDICATOR ADDED HERE */}
+          <ServerStatusIndicator />
         </div>
-        <div className={clsx(styles["sidebar-logo"], "no-dark")}>{logo}</div>
       </div>
       {children}
     </Fragment>
@@ -252,39 +327,6 @@ export function SideBar(props: { className?: string }) {
         logo={<ChatGptIcon />}
         shouldNarrow={shouldNarrow}
       >
-        {/* <div className={styles["sidebar-header-bar"]}>
-          <IconButton
-            icon={<MaskIcon />}
-            text={shouldNarrow ? undefined : Locale.Mask.Name}
-            className={styles["sidebar-bar-button"]}
-            onClick={() => {
-              if (config.dontShowMaskSplashScreen !== true) {
-                navigate(Path.NewChat, { state: { fromHome: true } });
-              } else {
-                navigate(Path.Masks, { state: { fromHome: true } });
-              }
-            }}
-            shadow
-          />
-          {mcpEnabled && (
-            <IconButton
-              icon={<McpIcon />}
-              text={shouldNarrow ? undefined : Locale.Mcp.Name}
-              className={styles["sidebar-bar-button"]}
-              onClick={() => {
-                navigate(Path.McpMarket, { state: { fromHome: true } });
-              }}
-              shadow
-            />
-          )}
-          <IconButton
-            icon={<DiscoveryIcon />}
-            text={shouldNarrow ? undefined : Locale.Discovery.Name}
-            className={styles["sidebar-bar-button"]}
-            onClick={() => setshowDiscoverySelector(true)}
-            shadow
-          />
-        </div> */}
         {showDiscoverySelector && (
           <Selector
             items={[
@@ -327,21 +369,12 @@ export function SideBar(props: { className?: string }) {
             <div className={styles["sidebar-action"]}>
               <Link to={Path.Settings}>
                 <IconButton
-                  aria={Locale.Settings.Title}
+                  aria-label={Locale.Settings.Title}
                   icon={<SettingsIcon />}
                   shadow
                 />
               </Link>
             </div>
-            {/* <div className={styles["sidebar-action"]}>
-              <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
-                <IconButton
-                  aria={Locale.Export.MessageFromChatGPT}
-                  icon={<GithubIcon />}
-                  shadow
-                />
-              </a>
-            </div> */}
           </>
         }
         secondaryAction={
