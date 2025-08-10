@@ -773,7 +773,7 @@ export const useChatStore = createPersistStore(
             ),
             config: {
               ...modelcfg,
-              stream: false,
+              stream: true,
               model,
               providerName,
             },
